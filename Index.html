@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🏆 家庭学术积分银行</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #1e4068;
+            --accent: #e43f5a;
+            --bg-sunny: #ffebd9;
+            --bar-sunny: #ff823a;
+            --bg-jerry: #e3faf2;
+            --bar-jerry: #0ca678;
+            --gray-light: #f8fafc;
+            --text-main: #334155;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+        body { background-color: #f1f5f9; color: var(--text-main); padding-bottom: 60px; }
+
+        /* 顶部导航与大标题 */
+        header { background: linear-gradient(135deg, var(--primary) 0%, #162447 100%); color: white; padding: 30px 20px; text-align: center; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        header h1 { font-size: 28px; letter-spacing: 2px; }
+        header p { opacity: 0.8; margin-top: 5px; font-size: 14px; }
+
+        .container { max-width: 1200px; margin: 30px auto; padding: 0 20px; }
+
+        /* 两人独立全局积分条 */
+        .global-status { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-bottom: 30px; }
+        .status-card { background: white; border-radius: 16px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); position: relative; overflow: hidden; }
+        .status-card.sunny { border-top: 6px solid var(--bar-sunny); }
+        .status-card.jerry { border-top: 6px solid var(--bar-jerry); }
+        .status-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .status-name { font-size: 22px; font-weight: bold; }
+        .status-score { font-size: 32px; font-weight: bold; color: var(--primary); }
+        .progress-track { background: #eee; height: 20px; border-radius: 10px; overflow: hidden; }
+        .progress-bar { height: 100%; width: 0%; transition: width 0.5s ease; }
+        .sunny .progress-bar { background: var(--bar-sunny); }
+        .jerry .progress-bar { background: var(--bar-jerry); }
+
+        /* 首页设置的3个核心按钮 */
+        .main-nav { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 40px; }
+        .nav-btn { background: white; border: none; padding: 25px; border-radius: 16px; font-size: 18px; font-weight: bold; color: var(--primary); cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); transition: all 0.2s ease; }
+        .nav-btn i { font-size: 32px; color: var(--accent); }
+        .nav-btn:hover { transform: translateY(-3px); box-shadow: 0 6px 16px rgba(0,0,0,0.1); background-color: #fafafa; }
+        .nav-btn.active { background: var(--primary); color: white; }
+        .nav-btn.active i { color: #fff9db; }
+
+        /* 页面模块内容控制 */
+        .page-module { display: none; background: white; border-radius: 16px; padding: 30px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); animation: fadeIn 0.3s ease; }
+        .page-module.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .module-title { font-size: 22px; margin-bottom: 25px; color: var(--primary); border-left: 5px solid var(--accent); padding-left: 12px; }
+
+        /* 1. 积分记录模块 */
+        .add-score-box { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .operator-panel { background: var(--gray-light); padding: 20px; border-radius: 12px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 8px; font-size: 14px; }
+        .form-group select, .form-group input { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
+        .btn-submit { background: var(--accent); color: white; border: none; width: 100%; padding: 12px; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-submit:hover { opacity: 0.9; }
+
+        /* 2. 任务清单模块 & 雷达图 */
+        .task-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+        .task-table { width: 100%; border-collapse: collapse; }
+        .task-table th, .task-table td { padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+        .task-table th { background: var(--gray-light); color: var(--primary); }
+        .charts-container { display: flex; flex-direction: column; gap: 20px; align-items: center; }
+        .chart-box { width: 100%; max-width: 380px; background: #fff; padding: 15px; border-radius: 12px; border: 1px solid #edf2f7; }
+        .chart-box h4 { text-align: center; margin-bottom: 10px; font-size: 14px; color: #4a5568; }
+
+        /* 3. 积分兑换奖励模块 */
+        .rewards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .reward-card { background: var(--gray-light); border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; cursor: pointer; transition: all 0.2s; position: relative; }
+        .reward-card:hover { transform: scale(1.02); border-color: var(--accent); background: #fff; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+        .reward-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; color: white; margin-bottom: 8px; }
+        .tag-small { background: #0ca678; }
+        .tag-medium { background: #f08c00; }
+        .tag-large { background: #e03131; }
+        .reward-title-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 16px; margin-bottom: 8px; }
+        .reward-cost { color: var(--accent); }
+        .reward-card p { font-size: 12px; color: #64748b; line-height: 1.4; }
+
+        /* 全局实时日志模块 */
+        .log-section { background: white; border-radius: 16px; padding: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-top: 30px; }
+        .log-title { font-size: 18px; margin-bottom: 15px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        .log-list { max-height: 180px; overflow-y: auto; list-style: none; padding-right: 5px; }
+        .log-list li { padding: 8px 12px; border-bottom: 1px dashed #e2e8f0; font-size: 13px; display: flex; justify-content: space-between; }
+        .log-list li:first-child { background-color: #f8fafc; font-weight: bold; border-radius: 4px; }
+        .log-time { color: #94a3b8; }
+        .log-text-inc { color: #2b8a3e; }
+        .log-text-dec { color: #c92a2a; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>🏆 家庭学术积分冒险银行</h1>
+        <p>快乐积分 · 趣味冒险 · 见证全面成长</p>
+    </header>
+
+    <div class="container">
+        <div class="global-status">
+            <div class="status-card sunny">
+                <div class="status-header">
+                    <span class="status-name">☀️ Sunny 的积分账户</span>
+                    <span class="status-score" id="sunnyScore">0</span>
+                </div>
+                <div class="progress-track"><div class="progress-bar" id="sunnyBar"></div></div>
+            </div>
+            <div class="status-card jerry">
+                <div class="status-header">
+                    <span class="status-name">🦖 Jerry 的积分账户</span>
+                    <span class="status-score" id="jerryScore">0</span>
+                </div>
+                <div class="progress-track"><div class="progress-bar" id="jerryBar"></div></div>
+            </div>
+        </div>
+
+        <div class="main-nav">
+            <button class="nav-btn active" onclick="switchPage('recordPage', this)"><i class="fa-solid fa-calculator"></i>积分记录</button>
+            <button class="nav-btn" onclick="switchPage('taskPage', this)"><i class="fa-solid fa-list-check"></i>任务清单与多边形图</button>
+            <button class="nav-btn" onclick="switchPage('rewardPage', this)"><i class="fa-solid fa-gift"></i>积分兑换奖励</button>
+        </div>
+
+        <div id="recordPage" class="page-module active">
+            <div class="module-title">账户变动操作台</div>
+            <div class="add-score-box">
+                <div class="operator-panel">
+                    <h3 style="font-size:16px; margin-bottom:15px; color:var(--primary);"><i class="fa-solid fa-circle-plus"></i> 手动增加成长积分</h3>
+                    <div class="form-group">
+                        <label>选择冒险者</label>
+                        <select id="incUser">
+                            <option value="sunny">Sunny (☀️)</option>
+                            <option value="jerry">Jerry (🦖)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>任务对应类型（用于生成多边形图数据）</label>
+                        <select id="incType">
+                            <option value="卷子">每周测试卷 (基础分)</option>
+                            <option value="写作">深度思考写作 (科普、错题本)</option>
+                            <option value="演讲">表达与演讲 (微课堂、播报)</option>
+                            <option value="实验">科学动手实践 (趣味小实验)</option>
+                            <option value="习惯">好习惯与专注打卡</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>获得积分途径具体说明</label>
+                        <input type="text" id="incDesc" placeholder="例如：数学第一单元测试获得98分 / 录制科学微视频">
+                    </div>
+                    <div class="form-group">
+                        <label>获得积分数</label>
+                        <input type="number" id="incPoints" placeholder="请输入具体分值" min="1">
+                    </div>
+                    <button class="btn-submit" onclick="handleAddPoints()">确认存入积分</button>
+                </div>
+                
+                <div style="background: var(--gray-light); padding:20px; border-radius:12px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">
+                    <i class="fa-solid fa-piggy-bank" style="font-size:70px; color:var(--bar-sunny); margin-bottom:15px;"></i>
+                    <h3 style="font-size:18px;">银行存单提示</h3>
+                    <p style="font-size:13px; max-width:300px; margin-top:5px;">请家长在核实孩子的学术产出（如检查完错题本或看完演讲视频）后，在这里输入并做明细保存。</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="taskPage" class="page-module">
+            <div class="module-title">学术任务清单与多边形数据图</div>
+            <div class="task-layout">
+                <div>
+                    <table class="task-table">
+                        <thead>
+                            <tr><th>任务大类</th><th>具体要求</th><th>对应奖励</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr><td><strong>每周测试卷</strong></td><td>按时完成每周校内/家庭知识巩固基础卷</td><td>卷面分数 (1:1)</td></tr>
+                            <tr><td><strong>深度思考写作</strong></td><td>科普短文、错题本逻辑Bug深度复盘、科幻作文</td><td>50-100 积分</td></tr>
+                            <tr><td><strong>表达与演讲</strong></td><td>录制3分钟小老师微课堂、家庭TED演讲展示</td><td>80-150 积分</td></tr>
+                            <tr><td><strong>科学动手实践</strong></td><td>厨房安全实验、制作精美单元知识思维导图</td><td>100-200 积分</td></tr>
+                            <tr><td><strong>好习惯打卡</strong></td><td>高效无干扰专注学习30分钟、阅读深度复述</td><td>10-30 积分</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="charts-container">
+                    <div class="chart-box">
+                        <h4>☀️ Sunny 的能力多边形 (完成任务统计)</h4>
+                        <canvas id="sunnyChart"></canvas>
+                    </div>
+                    <div class="chart-box">
+                        <h4>🦖 Jerry 的能力多边形 (完成任务统计)</h4>
+                        <canvas id="jerryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="rewardPage" class="page-module">
+            <div class="module-title">梦幻礼品兑换中心 (点击卡片直接申请扣积分)</div>
+            <div class="rewards-grid" id="rewardsGrid">
+                </div>
+        </div>
+
+        <div class="log-section">
+            <div class="log-title"><i class="fa-solid fa-clock-rotate-left"></i> 银行实时变动流水日志</div>
+            <ul class="log-list" id="logList">
+                <li><span>系统：家庭学术积分大冒险管理系统初始化成功！</span><span class="log-time">实时同步</span></li>
+            </ul>
+        </div>
+    </div>
+
+    <div id="exchangeModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); justify-content:center; align-items:center; z-index:999;">
+        <div style="background:white; padding:30px; border-radius:16px; width:400px; text-align:center; box-shadow:0 4px 20px rgba(0,0,0,0.2);">
+            <h3 id="modalTitle" style="margin-bottom:15px; font-size:18px;">谁要兑换此奖品？</h3>
+            <p id="modalDesc" style="font-size:14px; color:#64748b; margin-bottom:20px;"></p>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:15px; margin-bottom:15px;">
+                <button onclick="confirmExchange('sunny')" style="background:var(--bar-sunny); color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">☀️ Sunny 兑换</button>
+                <button onclick="confirmExchange('jerry')" style="background:var(--bar-jerry); color:white; border:none; padding:12px; border-radius:8px; font-weight:bold; cursor:pointer;">🦖 Jerry 兑换</button>
+            </div>
+            <button onclick="closeModal()" style="background:#cbd5e1; border:none; width:100%; padding:10px; border-radius:8px; cursor:pointer;">取消</button>
+        </div>
+    </div>
+
+    <script>
+        // 核心内存数据库模型 (全面本地防刷新机制：刷新页面数据不丢失)
+        let state = JSON.parse(localStorage.getItem('family_bank_state')) || {
+            scores: { sunny: 0, jerry: 0 },
+            // 多边形雷达图对应5大核心任务类别的历史累加次数统计
+            tasks: {
+                sunny: { "卷子": 0, "写作": 0, "演讲": 0, "实验": 0, "习惯": 0 },
+                jerry: { "卷子": 0, "写作": 0, "演讲": 0, "实验": 0, "习惯": 0 }
+            },
+            logs: []
+        };
+
+        // 统一内置您确认的高保真奖品清单
+        const rewardsData = [
+            { id:1, name:"文具盲盒/创意文具", cost:99, level:"small", desc:"减压捏捏笔、搞怪橡皮擦、宇航员发光书签等创意好物。" },
+            { id:2, name:"美味特权券", cost:149, level:"small", desc:"自由兑换一杯快乐加倍的心仪奶茶或美味冰淇淋。" },
+            { id:3, name:"娱乐延时券", cost:199, level:"small", desc:"周末看电视或玩iPad的时间，额外快乐增加 15 分钟。" },
+            { id:4, name:"限量零食福袋", cost:249, level:"small", desc:"打包好装满高人气精选限制级小零食的惊喜包。" },
+            { id:5, name:"核心游戏特权", cost:299, level:"small", desc:"重磅特权！获得游戏机限时 24 小时绝对自主控制权或新游戏游玩特权。" },
+            { id:6, name:"“不家务”豁免券", cost:499, level:"medium", desc:"特权免除！可免除一周内属于自己的某项日常家务。" },
+            { id:7, name:"晚餐菜单决定券", cost:799, level:"medium", desc:"指定某天午餐/晚餐吃什么。点外卖麦当劳或快乐烤肉你说了算！" },
+            { id:8, name:"正版潮流盲盒/手办", cost:999, level:"medium", desc:"泡泡玛特盲盒、奥特曼卡牌豪华包或宝可梦精美周边手办。" },
+            { id:9, name:"精美主题图书/实验盒", cost:1099, level:"medium", desc:"大部头精装《国家地理少儿百科》、珍藏版漫画或科学实验大盒子。" },
+            { id:10, name:"专属房间个性灯饰", cost:1499, level:"medium", desc:"炫彩智能LED变色灯带或把璀璨宇宙搬进卧室的宇航员星空灯。" },
+            { id:11, name:"职业体验与户外露营", cost:3999, level:"large", desc:"兑换一次双人户外宿营机会（家长全程高质量陪伴）或高端马术/滑雪课。" },
+            { id:12, name:"主题乐园游玩门票", cost:4999, level:"large", desc:"兑换北京环球影城、迪士尼乐园、或者本地大型长隆水上乐园门票一张。" },
+            { id:13, name:"潮流运动大件装备", cost:4999, level:"large", desc:"兑换梦寐以求的滑板、花式极限轮滑鞋，或一辆高品质全新自行车。" },
+            { id:14, name:"高阶科学探索工具", cost:5499, level:"large", desc:"未来科学家高配：专业入门级天文望远镜，或能看细胞的高倍数显显微镜。" },
+            { id:15, name:"乐高拼搭大作", cost:5999, level:"large", desc:"耐心的最高荣誉：乐高（LEGO）大型机械组、大城堡系列积木。" },
+            { id:16, name:"旅行碎片收集券", cost:5999, level:"large", desc:"用纯粹努力换取远方：自由指定目的地，兑换单程机票或高铁票一张！" }
+        ];
+
+        let currentActiveReward = null; 
+        let sunnyChartInstance = null;
+        let jerryChartInstance = null;
+
+        // 保存状态到浏览器缓存
+        function saveState() {
+            localStorage.setItem('family_bank_state', JSON.stringify(state));
+            updateUI();
+        }
+
+        // 模块路由切换控制
+        function switchPage(pageId, btnElement) {
+            document.querySelectorAll('.page-module').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(pageId).classList.add('active');
+            btnElement.classList.add('active');
+            if(pageId === 'taskPage') {
+                renderCharts();
+            }
+        }
+
+        // 初始化渲染页面
+        function init() {
+            renderRewards();
+            updateUI();
+            // 如果历史有日志，同步渲染还原
+            if(state.logs.length > 0) {
+                const list = document.getElementById('logList');
+                list.innerHTML = state.logs.map(l => `<li><span class="${l.class}">${l.text}</span><span class="log-time">${l.time}</span></li>`).join('');
+            }
+        }
+
+        // 刷新更新整个UI界面及进度条宽度
+        function updateUI() {
+            document.getElementById('sunnyScore').innerText = state.scores.sunny;
+            document.getElementById('jerryScore').innerText = state.scores.jerry;
+            
+            // 进度条按本学期终极梦想5999分封顶
+            let sBar = (state.scores.sunny / 5999) * 100;
+            let jBar = (state.scores.jerry / 5999) * 100;
+            document.getElementById('sunnyBar').style.width = Math.min(sBar, 100) + '%';
+            document.getElementById('jerryBar').style.width = Math.min(jBar, 100) + '%';
+        }
+
+        // 渲染积分奖品网络
+        function renderRewards() {
+            const grid = document.getElementById('rewardsGrid');
+            grid.innerHTML = rewardsData.map(r => {
+                let lvlText = r.level === 'small' ? '微笑小奖' : r.level === 'medium' ? '心动中奖' : '梦幻大奖';
+                return `
+                    <div class="reward-card" onclick="openExchangeModal(${r.id})">
+                        <span class="reward-tag tag-${r.level}">${lvlText}</span>
+                        <div class="reward-title-row">
+                            <span>${r.name}</span>
+                            <span class="reward-cost">${r.cost}分</span>
+                        </div>
+                        <p>${r.desc}</p>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 写入新日志项
+        function pushLog(text, isIncrement) {
+            const now = new Date();
+            const timeStr = `${now.getMonth()+1}/${now.getDate()} ${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`;
+            const logClass = isIncrement ? 'log-text-inc' : 'log-text-dec';
+            const logItem = { text, time: timeStr, class: logClass };
+            
+            state.logs.unshift(logItem); // 新日志排在最前
+            if(state.logs.length > 50) state.logs.pop(); // 限制内存容量
+
+            const list = document.getElementById('logList');
+            list.innerHTML = state.logs.map(l => `<li><span class="${l.class}">${l.text}</span><span class="log-time">${l.time}</span></li>`).join('');
+        }
+
+        // 手动录入增加积分逻辑
+        function handleAddPoints() {
+            const user = document.getElementById('incUser').value;
+            const type = document.getElementById('incType').value;
+            const desc = document.getElementById('incDesc').value.trim();
+            const points = parseInt(document.getElementById('incPoints').value);
+
+            if(!desc) { alert("请输入具体的积分获得途径途径说明！"); return; }
+            if(isNaN(points) || points <= 0) { alert("请输入有效的积分数值！"); return; }
+
+            state.scores[user] += points;
+            state.tasks[user][type] += 1; // 增加对应维度的多边形任务计数计数
+            
+            const userName = user === 'sunny' ? '☀️ Sunny' : '🦖 Jerry';
+            pushLog(`🎉 ${userName} 成功完成【${desc}】，积分账户存入 +${points} 分！`, true);
+            
+            // 表单复位
+            document.getElementById('incDesc').value = '';
+            document.getElementById('incPoints').value = '';
+            saveState();
+            alert("积分成功存入！");
+        }
+
+        // 触发兑换交互弹窗
+        function openExchangeModal(rewardId) {
+            currentActiveReward = rewardsData.find(r => r.id === rewardId);
+            document.getElementById('modalTitle').innerText = `兑换确认：${currentActiveReward.name}`;
+            document.getElementById('modalDesc').innerText = `该商品将消耗账户 ${currentActiveReward.cost} 积分。请选择本次要消费的冒险家：`;
+            document.getElementById('exchangeModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('exchangeModal').style.display = 'none';
+            currentActiveReward = null;
+        }
+
+        // 确认扣除执行业务
+        function confirmExchange(user) {
+            if(!currentActiveReward) return;
+            const cost = currentActiveReward.cost;
+            const uName = user === 'sunny' ? '☀️ Sunny' : '🦖 Jerry';
+
+            if(state.scores[user] < cost) {
+                alert(`❌ 兑换失败！当前 ${uName} 的剩余积分为 ${state.scores[user]} 分，不足以兑换此商品（需要 ${cost} 分）。再接再厉多赚点分吧！`);
+                closeModal();
+                return;
+            }
+
+            // 扣分处理
+            state.scores[user] -= cost;
+            pushLog(`🎁 ${uName} 成功消耗 ${cost} 积分，兑换领取了【${currentActiveReward.name}】！`, false);
+            
+            saveState();
+            closeModal();
+            alert(`🎉 恭喜！${uName} 成功兑换 ${currentActiveReward.name}，已成功从账户扣除积分。`);
+        }
+
+        // 渲染或更新多边形（雷达图）方法
+        function renderCharts() {
+            const labels = ["测试卷", "深度写作", "表达演讲", "科学实验", "习惯打卡"];
+            const keys = ["卷子", "写作", "演讲", "实验", "习惯"];
+
+            const sunnyData = keys.map(k => state.tasks.sunny[k]);
+            const jerryData = keys.map(k => state.tasks.jerry[k]);
+
+            // Sunny 雷达图
+            if (sunnyChartInstance) sunnyChartInstance.destroy();
+            const ctxS = document.getElementById('sunnyChart').getContext('2d');
+            sunnyChartInstance = new Chart(ctxS, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '完成任务频次',
+                        data: sunnyData,
+                        backgroundColor: 'rgba(255, 130, 58, 0.2)',
+                        borderColor: 'rgba(255, 130, 58, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(255, 130, 58, 1)'
+                    }]
+                },
+                options: { scales: { r: { min: 0, ticks: { stepSize: 1 } } } }
+            });
+
+            // Jerry 雷达图
+            if (jerryChartInstance) jerryChartInstance.destroy();
+            const ctxJ = document.getElementById('jerryChart').getContext('2d');
+            jerryChartInstance = new Chart(ctxJ, {
+                type: 'radar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: '完成任务频次',
+                        data: jerryData,
+                        backgroundColor: 'rgba(12, 166, 120, 0.2)',
+                        borderColor: 'rgba(12, 166, 120, 1)',
+                        borderWidth: 2,
+                        pointBackgroundColor: 'rgba(12, 166, 120, 1)'
+                    }]
+                },
+                options: { scales: { r: { min: 0, ticks: { stepSize: 1 } } } }
+            });
+        }
+
+        // 执行初始化
+        window.onload = init;
+    </script>
+</body>
+</html>
